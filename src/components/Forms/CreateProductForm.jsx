@@ -7,6 +7,7 @@ import {  Label } from "flowbite-react";
 import {  useForm } from "react-hook-form";
 // import {z} from 'zod'
 import { useCreateProductsMutation } from "../../redux/features/car/car";
+import { getDecryptedAccessToken } from "../../utils/tokenUtils";
 
 
 
@@ -35,7 +36,7 @@ const [createCar, {data, error, isLoading}] = useCreateProductsMutation();
     // define using with useForm 
     const {register, handleSubmit} = useForm({
         //  resolver: zodResolver(schemaValidation),
-         defaultValue: {
+         defaultValues: {
          make: "",
          model: "",
          year: 0,
@@ -44,33 +45,79 @@ const [createCar, {data, error, isLoading}] = useCreateProductsMutation();
          description: "",
          color: "",
          fuel_type: "",
-         transmission: "", 
-         image: ""
+         transmission: "",
+         file: null
        }
     })
 
     // accessToken 
     // const accessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtb21vQGdtYWlsLmNvbSIsImV4cCI6MTc1MzY3MDI5MCwidHlwZSI6ImFjY2VzcyJ9.o6ECFmgF59_fpsSbz6oNb0brWDGYfSnk_iRqYXzKn4o"
 
-    function onSubmit(values){
+    async function onSubmit(values){
         console.log(values);
-        createCar({
-            newCar:{
-                make: values.make,
-                model: values.model,
-                year: values.year,
-                price: values.price, 
-                mileage:values.mileage,
-                description: values.description,
-                color:values.color,
-                fuel_type: values.fuel_type,  
-                transmission: values.transmission, 
-                image: values.image
+        
+        // Get the file from the form
+        const fileList = values.file;
+        const file = fileList && fileList[0]; 
+        
+        if (!file) {
+            console.error("No file selected");
+            return;
+        }
+        
+        console.log("the file: ", file);
+        const accessToken = getDecryptedAccessToken();
+        
+        if (!accessToken) {
+            console.error("No access token available");
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        console.log("form data: ", formData);
+
+        try {
+            // Upload file first and wait for response
+            const uploadResponse = await fetch("https://car-nextjs-api.cheatdev.online/upload", {
+                method: "POST",
+                headers: {
+                    // Don't set Content-Type for multipart/form-data - browser sets it automatically
+                    'Authorization': `Bearer ${accessToken}`
+                },
+                body: formData
+            });
+            
+            if (!uploadResponse.ok) {
+                throw new Error(`Upload failed: ${uploadResponse.status}`);
             }
-        })
+            
+            const uploadResult = await uploadResponse.json();
+            console.log("Upload successful:", uploadResult);
+            
+            // Get the actual image URL from upload response
+            const imageUrl = uploadResult.url || uploadResult.file_url || "https://car-nextjs-api.cheatdev.online/upload";
+            
+            // Now create the car with the actual image URL
+            createCar({
+                newCar:{
+                    make: values.make,
+                    model: values.model,
+                    year: parseInt(values.year),
+                    price: parseFloat(values.price), 
+                    mileage: parseInt(values.mileage),
+                    description: values.description,
+                    color: values.color,
+                    fuel_type: values.fuel_type,  
+                    transmission: values.transmission, 
+                    image: imageUrl
+                }
+            });
+            
+        } catch (error) {
+            console.error("Error uploading file:", error);
+        }
     }
-
-
   return (
     <div>
             <form  onSubmit={handleSubmit(onSubmit)} className="flex max-w-md flex-col gap-4">
@@ -79,7 +126,7 @@ const [createCar, {data, error, isLoading}] = useCreateProductsMutation();
         <div className="mb-2 block">
           <Label htmlFor="make">Make</Label>
         </div>
-        <input id="email1" type="text" placeholder="name@flowbite.com" required {...register("make")} className="border p-2 rounded-lg" />
+        <input id="make" type="text" placeholder="Toyota, Honda, etc." required {...register("make")} className="border p-2 rounded-lg" />
       </div>
       {/* model */}
       <div>
@@ -115,21 +162,21 @@ const [createCar, {data, error, isLoading}] = useCreateProductsMutation();
         <div className="mb-2 block">
           <Label htmlFor="description">Description</Label>
         </div>
-        <input id="price" type="text" required  {...register("description")} className="border p-2 rounded-lg"/>
+        <input id="description" type="text" required  {...register("description")} className="border p-2 rounded-lg"/>
       </div>
       {/* color */}
        <div>
         <div className="mb-2 block">
           <Label htmlFor="color">Color</Label>
         </div>
-        <input id="price" type="text" required  {...register("color")} className="border p-2 rounded-lg"/>
+        <input id="color" type="text" required  {...register("color")} className="border p-2 rounded-lg"/>
       </div>
       {/* fuelType*/}
        <div>
         <div className="mb-2 block">
           <Label htmlFor="fuel_type">Fuel Type</Label>
         </div>
-        <input id="price" type="text" required  {...register("fuel_type")} className="border p-2 rounded-lg"/>
+        <input id="fuel_type" type="text" required  {...register("fuel_type")} className="border p-2 rounded-lg"/>
       </div>
       {/* transmission */}
        <div>
@@ -143,10 +190,12 @@ const [createCar, {data, error, isLoading}] = useCreateProductsMutation();
         <div className="mb-2 block">
           <Label htmlFor="image">Image</Label>
         </div>
-        <input id="image" type="text" required  {...register("image")} className="border p-2 rounded-lg"/>
+        <input id="image" type="file" accept="image/*" required {...register("file")} className="border p-2 rounded-lg" />
       </div>
     
-       <input type="submit" />
+       <button type="submit" disabled={isLoading} className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50">
+         {isLoading ? 'Creating...' : 'Create Product'}
+       </button>
     </form>
     <div>
        
