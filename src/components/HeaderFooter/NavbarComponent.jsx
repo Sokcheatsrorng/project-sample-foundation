@@ -1,8 +1,12 @@
 
 import { Navbar, NavbarBrand, NavbarCollapse, NavbarLink, NavbarToggle } from "flowbite-react";
+import { useSelector } from "react-redux";
 import { NavLink } from "react-router";
 
 export function NavbarComponent() {
+    const count = useSelector((state) => state.counter.value)
+
+
     return (
         <Navbar fluid rounded>
             {/* logo */}
@@ -27,6 +31,12 @@ export function NavbarComponent() {
                 {/* auth */}
                     <NavLink to="/auth" >
                      Login
+                </NavLink>
+                  <NavLink to="/cart" >
+                      <div className="relative">
+                        🛒
+                      </div>
+                      <div className=" px-2 rounded-4xl  bg-red-500 absolute top-2 ">{count}</div>
                 </NavLink>
             </NavbarCollapse>
         </Navbar>
